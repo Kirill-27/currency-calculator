@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/go-chi/chi"
+	"github.com/spf13/cast"
 	"log"
 	"net/http"
+	"strings"
 	"time"
-	"fmt"
-	"github.com/spf13/cast"
-	"github.com/go-chi/chi"
 )
 
 const (
@@ -101,21 +102,33 @@ func headers(w http.ResponseWriter, req *http.Request) {
 }
 
 func (e *ExchangeRatesKeeper) calculate(w http.ResponseWriter, req *http.Request) {
-	//price, _ := cast.ToFloat64E(chi.URLParam(req, "price"))
+	price, _ := cast.ToIntE(chi.URLParam(req, "price"))
 	currency, _ := cast.ToStringE(chi.URLParam(req, "currency"))
 
-	fmt.Fprintf(w, currency)
+	switch strings.ToLower(currency) {
+	case "usd":
+		fmt.Fprintf(w, "%d USD = %f UAN", price, float64(price)*e.USD)
+	case "eur":
+		fmt.Fprintf(w, "%d EUR = %f UAN", price, float64(price)*e.EUR)
+	case "rub":
+		fmt.Fprintf(w, "%d RUB = %f UAN", price, float64(price)*e.RUB)
+	default:
+		fmt.Fprintf(w, "No such currency")
+	}
 }
 
 func main() {
 
 	exchangeRatesKeeper := NewExchangeRatesKeeper()
 	go exchangeRatesKeeper.ExchangeRatesGetter()
-	time.Sleep(10 * time.Second)
+	r := chi.NewRouter()
+	r.Route("/calculate", func(r chi.Router) {
+		r.Get("/{currency}/{price}", exchangeRatesKeeper.calculate)
+	})
 	http.HandleFunc("/hello", hello)
-	http.HandleFunc("/calculate/{price}/{currency}", exchangeRatesKeeper.calculate)
+	http.HandleFunc("/calculate/{currency}/{price}", exchangeRatesKeeper.calculate)
 	http.HandleFunc("/headers", headers)
-	http.ListenAndServe(":8384", nil)
+	http.ListenAndServe(":8384", r)
 
 	//exchangeRatesKeeper.LastResultGetter()
 
