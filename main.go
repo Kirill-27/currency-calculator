@@ -19,9 +19,9 @@ const (
 )
 
 type Result struct {
-	USD      float64
-	EUR      float64
-	RUB      float64
+	UAN           int
+	Currency      string
+	ResultValue   float64
 }
 
 type NBUResponse []struct {
@@ -37,6 +37,9 @@ type ExchangeRatesKeeper struct {
 	EUR      float64
 	RUB      float64
 	Results  chan Result
+}
+func (r Result) ToString() string{
+	return fmt.Sprintf("UAN: %d, Currency: %s, ResultValue: %f", r.UAN, r.Currency, r.ResultValue)
 }
 
 func NewExchangeRatesKeeper() *ExchangeRatesKeeper {
@@ -58,16 +61,9 @@ func NewExchangeRatesKeeper() *ExchangeRatesKeeper {
 	}
 }
 
-func (e *ExchangeRatesKeeper) LastResultGetter() {
-	for elem := range e.Results {
-		fmt.Println(len(e.Results), elem.USD)
-	}
-}
-
 func (e *ExchangeRatesKeeper) ExchangeRatesGetter() {
 	for {
 		time.Sleep(3 * time.Second)
-		//time.Sleep(1 * time.Hour)
 		var response NBUResponse
 
 		resp, err := http.Get(NBUUrl)
@@ -81,11 +77,6 @@ func (e *ExchangeRatesKeeper) ExchangeRatesGetter() {
 		e.USD = response[USDIndex].Rate
 		e.EUR = response[EURIndex].Rate
 		e.RUB = response[RUBIndex].Rate
-		e.Results <- Result {
-			USD: e.USD,
-			EUR: e.EUR,
-			RUB: e.RUB,
-		}
 	}
 }
 
@@ -93,34 +84,48 @@ func (e *ExchangeRatesKeeper) CalculatePrise(w http.ResponseWriter, req *http.Re
 	price, _ := cast.ToIntE(chi.URLParam(req, "price"))
 	currency, _ := cast.ToStringE(chi.URLParam(req, "currency"))
 
+	var result Result
+	result.UAN = price
+	result.Currency = strings.ToLower(currency)
 	switch strings.ToLower(currency) {
 	case "usd":
+		summa :=  float64(price)*e.USD
 		fmt.Fprintf(w, "%d USD = %f UAN", price, float64(price)*e.USD)
+		result.ResultValue = summa
 	case "eur":
-		fmt.Fprintf(w, "%d EUR = %f UAN", price, float64(price)*e.EUR)
+		summa :=  float64(price)*e.EUR
+		fmt.Fprintf(w, "%d EUR = %f UAN", price, summa)
+		result.ResultValue = summa
 	case "rub":
-		fmt.Fprintf(w, "%d RUB = %f UAN", price, float64(price)*e.RUB)
+		summa :=  float64(price)*e.RUB
+		fmt.Fprintf(w, "%d RUB = %f UAN", price, summa)
+		result.ResultValue = summa
 	default:
 		fmt.Fprintf(w, "No such currency")
+		return
 	}
+
+	e.Results <- result
 }
 
 func (e *ExchangeRatesKeeper) GetLastResult(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "Last result")
+	if len(e.Results) == 0 {
+		fmt.Fprintf(w, "No raw results in history")
+		return
+	}
+	res := <- e.Results
+	fmt.Fprintf(w, "Last unreaded result:\n"+res.ToString())
 }
 
 func main() {
-
 	exchangeRatesKeeper := NewExchangeRatesKeeper()
 	go exchangeRatesKeeper.ExchangeRatesGetter()
 	r := chi.NewRouter()
 	r.Route("/calculate", func(r chi.Router) {
 		r.Get("/{currency}/{price}", exchangeRatesKeeper.CalculatePrise)
 	})
-	r.Route("/lastresult", func(r chi.Router) {
+	go r.Route("/lastresult", func(r chi.Router) {
 		r.Get("/", exchangeRatesKeeper.GetLastResult)
 	})
 	http.ListenAndServe(":8384", r)
-
-	//exchangeRatesKeeper.LastResultGetter()
 }
