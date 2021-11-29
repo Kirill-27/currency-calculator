@@ -89,7 +89,7 @@ func (e *ExchangeRatesKeeper) ExchangeRatesGetter() {
 	}
 }
 
-func (e *ExchangeRatesKeeper) calculate(w http.ResponseWriter, req *http.Request) {
+func (e *ExchangeRatesKeeper) CalculatePrise(w http.ResponseWriter, req *http.Request) {
 	price, _ := cast.ToIntE(chi.URLParam(req, "price"))
 	currency, _ := cast.ToStringE(chi.URLParam(req, "currency"))
 
@@ -105,17 +105,22 @@ func (e *ExchangeRatesKeeper) calculate(w http.ResponseWriter, req *http.Request
 	}
 }
 
+func (e *ExchangeRatesKeeper) GetLastResult(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "Last result")
+}
+
 func main() {
 
 	exchangeRatesKeeper := NewExchangeRatesKeeper()
 	go exchangeRatesKeeper.ExchangeRatesGetter()
 	r := chi.NewRouter()
 	r.Route("/calculate", func(r chi.Router) {
-		r.Get("/{currency}/{price}", exchangeRatesKeeper.calculate)
+		r.Get("/{currency}/{price}", exchangeRatesKeeper.CalculatePrise)
+	})
+	r.Route("/lastresult", func(r chi.Router) {
+		r.Get("/", exchangeRatesKeeper.GetLastResult)
 	})
 	http.ListenAndServe(":8384", r)
 
 	//exchangeRatesKeeper.LastResultGetter()
-
 }
-
