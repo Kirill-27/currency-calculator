@@ -16,6 +16,7 @@ const (
   RUBIndex = 18
   USDIndex = 26
   EURIndex = 32
+  MaxChannelSize = 1000000
 )
 
 type Result struct {
@@ -37,7 +38,6 @@ type ExchangeRatesKeeper struct {
 	EUR      float64
 	RUB      float64
 	Results  chan Result
-	Test     chan int
 }
 func (r Result) ToString() string{
 	return fmt.Sprintf("UAN: %d, Currency: %s, ResultValue: %f", r.UAN, r.Currency, r.ResultValue)
@@ -58,8 +58,7 @@ func NewExchangeRatesKeeper() *ExchangeRatesKeeper {
 		USD: response[USDIndex].Rate,
 		EUR: response[EURIndex].Rate,
 		RUB: response[RUBIndex].Rate,
-		Results: make(chan Result),
-		Test: make(chan int),
+		Results: make(chan Result, MaxChannelSize),
 	}
 }
 
@@ -104,20 +103,14 @@ func (e *ExchangeRatesKeeper) CalculatePrise(w http.ResponseWriter, req *http.Re
 		result.ResultValue = summa
 	default:
 		fmt.Fprintf(w, "No such currency")
+		return
 	}
-
-	e.Results <- Result{
-		UAN: price,
-		Currency: strings.ToLower(currency),
-		ResultValue: 4,
-	}
-	//e.Test <- 1
-	fmt.Fprintf(w, "GG WP")
+	e.Results <- result
 }
 
 func (e *ExchangeRatesKeeper) GetLastResult(w http.ResponseWriter, req *http.Request) {
 	if len(e.Results) == 0 {
-		fmt.Fprintf(w, "No raw results in history %d", len(e.Test))
+		fmt.Fprintf(w, "No raw results in history")
 		return
 	}
 	res := <- e.Results
