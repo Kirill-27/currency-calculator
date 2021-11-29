@@ -37,6 +37,7 @@ type ExchangeRatesKeeper struct {
 	EUR      float64
 	RUB      float64
 	Results  chan Result
+	Test     chan int
 }
 func (r Result) ToString() string{
 	return fmt.Sprintf("UAN: %d, Currency: %s, ResultValue: %f", r.UAN, r.Currency, r.ResultValue)
@@ -58,6 +59,7 @@ func NewExchangeRatesKeeper() *ExchangeRatesKeeper {
 		EUR: response[EURIndex].Rate,
 		RUB: response[RUBIndex].Rate,
 		Results: make(chan Result),
+		Test: make(chan int),
 	}
 }
 
@@ -90,7 +92,7 @@ func (e *ExchangeRatesKeeper) CalculatePrise(w http.ResponseWriter, req *http.Re
 	switch strings.ToLower(currency) {
 	case "usd":
 		summa :=  float64(price)*e.USD
-		fmt.Fprintf(w, "%d USD = %f UAN", price, float64(price)*e.USD)
+		fmt.Fprintf(w, "%d USD = %f UAN", price, summa)
 		result.ResultValue = summa
 	case "eur":
 		summa :=  float64(price)*e.EUR
@@ -102,15 +104,20 @@ func (e *ExchangeRatesKeeper) CalculatePrise(w http.ResponseWriter, req *http.Re
 		result.ResultValue = summa
 	default:
 		fmt.Fprintf(w, "No such currency")
-		return
 	}
 
-	e.Results <- result
+	e.Results <- Result{
+		UAN: price,
+		Currency: strings.ToLower(currency),
+		ResultValue: 4,
+	}
+	//e.Test <- 1
+	fmt.Fprintf(w, "GG WP")
 }
 
 func (e *ExchangeRatesKeeper) GetLastResult(w http.ResponseWriter, req *http.Request) {
 	if len(e.Results) == 0 {
-		fmt.Fprintf(w, "No raw results in history")
+		fmt.Fprintf(w, "No raw results in history %d", len(e.Test))
 		return
 	}
 	res := <- e.Results
@@ -124,7 +131,7 @@ func main() {
 	r.Route("/calculate", func(r chi.Router) {
 		r.Get("/{currency}/{price}", exchangeRatesKeeper.CalculatePrise)
 	})
-	go r.Route("/lastresult", func(r chi.Router) {
+	r.Route("/lastresult", func(r chi.Router) {
 		r.Get("/", exchangeRatesKeeper.GetLastResult)
 	})
 	http.ListenAndServe(":8384", r)
