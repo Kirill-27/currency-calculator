@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 	"fmt"
+	"github.com/spf13/cast"
+	"github.com/go-chi/chi"
 )
 
 const (
@@ -97,12 +99,20 @@ func headers(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 }
+
+func (e *ExchangeRatesKeeper) calculate(w http.ResponseWriter, req *http.Request) {
+	id:, err = cast.ToInt64E(chi.URLParam(req, "price"))
+	fmt.Fprintf(w, "hello\n")
+}
+
 func main() {
-	http.HandleFunc("/hello", hello)
-	http.HandleFunc("/headers", headers)
+
 	exchangeRatesKeeper := NewExchangeRatesKeeper()
 	go exchangeRatesKeeper.ExchangeRatesGetter()
 	time.Sleep(10 * time.Second)
+	http.HandleFunc("/hello", hello)
+	http.HandleFunc("/calculate/{price}/{currency}", exchangeRatesKeeper.calculate)
+	http.HandleFunc("/headers", headers)
 	http.ListenAndServe(":8384", nil)
 
 	//exchangeRatesKeeper.LastResultGetter()
