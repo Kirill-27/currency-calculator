@@ -101,8 +101,10 @@ func headers(w http.ResponseWriter, req *http.Request) {
 }
 
 func (e *ExchangeRatesKeeper) calculate(w http.ResponseWriter, req *http.Request) {
-	id:, err = cast.ToInt64E(chi.URLParam(req, "price"))
-	fmt.Fprintf(w, "hello\n")
+	//price, _ := cast.ToFloat64E(chi.URLParam(req, "price"))
+	currency, _ := cast.ToStringE(chi.URLParam(req, "currency"))
+
+	fmt.Fprintf(w, currency)
 }
 
 func main() {
