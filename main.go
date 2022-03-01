@@ -48,7 +48,7 @@ func NewExchangeRatesKeeper() *ExchangeRatesKeeper {
 
 	resp, err := http.Get(NBUUrl)
 	if err != nil {
-		log.Fatal("an error occurred when get from nbu api")
+		log.Fatal("an error occurred when get from nbu api ")
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
